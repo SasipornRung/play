@@ -3,272 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project DNA - The "Aha!" Moment (v3 FIXED)</title>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        blue: { 300: '#93C5FD', 500: '#3B82F6' },
-                        orange: { 300: '#FDBA74', 500: '#F97316' },
-                        red: { 300: '#FCA5A5', 500: '#EF4444' },
-                        yellow: { 300: '#FDE047' },
-                        cyan: { 300: '#67E8F9', 500: '#06B6D4' }
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react.dom.development.js"></script>
-    
-    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.min.js"></script>
-    
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+    <title>Mockup Web Page</title>
     <style>
-        body { background-color: #111827; /* bg-gray-900 */ }
-        .sticky-chart {
-            position: sticky;
-            top: 3rem;
-            /* ให้ความสูงยืดหยุ่นตามเนื้อหา แต่ไม่เกินหน้าจอ */
-            max-height: calc(100vh - 6rem); 
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
         }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 0;
+        }
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 1rem 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+        }
+        nav ul {
+            list-style: none;
+            padding: 0;
+            text-align: center;
+            background-color: #444;
+            margin-top: 10px;
+        }
+        nav ul li {
+            display: inline;
+            margin: 0 15px;
+        }
+        nav ul li a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 0;
+            display: inline-block;
+        }
+        nav ul li a:hover {
+            color: #ddd;
+        }
+        .main-content {
+            padding: 20px 0;
+            display: flex;
+            flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+            gap: 20px; /* Space between columns */
+            justify-content: center; /* Center columns horizontally */
+        }
+        .column {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex: 1; /* Allow columns to grow and shrink */
+            min-width: 280px; /* Minimum width for columns before wrapping */
+            max-width: 380px; /* Maximum width for columns */
+        }
+        .column h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        footer {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 20px;
+        }
 
-    <script type="text/babel">
-
-        // Import ที่จำเป็น
-        const { useState, useEffect, useRef, forwardRef } = React;
-        const { 
-            LineChart, Line, XAxis, YAxis, CartesianGrid, 
-            Tooltip, Legend, ResponsiveContainer, ReferenceLine
-        } = Recharts;
-
-        // --- 1. MOCK DATA (V2) ---
-        const cumulativeData = [
-          { year: 1990, asoke: 4, huaiKhwang: 2, thaphra: 1 },
-          { year: 1993, asoke: 35, huaiKhwang: 6, thaphra: 2 }, 
-          { year: 1996, asoke: 55, huaiKhwang: 10, thaphra: 3 },
-          { year: 1997, asoke: 56, huaiKhwang: 11, thaphra: 3 }, // CRASH
-          { year: 2000, asoke: 58, huaiKhwang: 13, thaphra: 4 },
-          { year: 2004, asoke: 70, huaiKhwang: 20, thaphra: 5 },
-          { year: 2010, asoke: 128, huaiKhwang: 60, thaphra: 8 },
-          { year: 2015, asoke: 165, huaiKhwang: 98, thaphra: 12 },
-          { year: 2016, asoke: 170, huaiKhwang: 102, thaphra: 14 }, // BOOM
-          { year: 2020, asoke: 200, huaiKhwang: 125, thaphra: 15 },
-          { year: 2024, asoke: 210, huaiKhwang: 128, thaphra: 18 },
-        ];
-        
-        const insights = [
-          {
-            id: 'asoke',
-            title: 'อโศก: "พยานแห่งประวัติศาสตร์"',
-            subtitle: 'The Historical Witness',
-            description: 'ดูกราฟอโศก (สีน้ำเงิน) พุ่งขึ้นสุดขีดในปี 1993 และ "ถูกล้างบาง" ด้วยวิกฤตต้มยำกุ้งปี 1997  กราฟนิ่งไปเกือบ 10 ปีก่อนจะฟื้นตัว',
-            insight: 'Actionable Insight: อโศกคือ "ตลาดวัยกลางคน" (Mature Market) ความเสี่ยงคือ "ความล้าสมัย" (Aging)',
-            color: 'blue',
-          },
-          {
-            id: 'huaiKhwang',
-            title: 'ห้วยขวาง: "พรมแดนประชากรใหม่"',
-            subtitle: 'The New Demographic Frontier',
-            description: 'ดูกราฟห้วยขวาง (สีส้ม) "เรียบสนิท" มาตลอด จนกระทั่ง "ระเบิด" (Big Bang) ขึ้นหลังปี 2016  สาเหตุคือ "The China Wave" และ "Thai First Jobbers"',
-            insight: 'Actionable Insight: ห้วยขวางคือ "ตลาดวัยรุ่น" (Adolescent Market) ความเสี่ยงคือ "การแข่งขันกันเอง" (Intense Competition)',
-            color: 'orange',
-          },
-          {
-            id: 'thaphra',
-            title: 'ท่าพระ: "ชุมทางแห่งอนาคต"',
-            subtitle: 'The Infrastructure Hub',
-            description: 'ท่าพระ (สีแดง) ก็ "เรียบสนิท" เหมือนกัน จุดเปลี่ยนคือปี 2016-2021 เมื่อ "MRT สายสีน้ำเงินส่วนต่อขยาย"  ทำให้ที่นี่กลายเป็น Interchange',
-            insight: 'Actionable Insight: ตลาดนี้ "เกิดจากรางรถไฟ ไม่ใช่เกิดจากคน" ความเสี่ยงคือ "Demand ที่คาดไว้อาจไม่มาจริง"',
-            color: 'red',
-          },
-        ];
-
-        // --- 2. COMPONENT: InsightCard ---
-        const InsightCard = forwardRef(({ title, subtitle, description, insight, color }, ref) => (
-            <div ref={ref} className={`p-6 mb-8 border-l-4 border-${color}-500 bg-gray-800 rounded-lg shadow-lg opacity-95`}>
-              <h2 className={`text-2xl font-bold text-${color}-300`}>{title}</h2>
-              <h3 className="text-lg font-semibold text-gray-300 mb-2">{subtitle}</h3>
-              <p className="text-gray-400 mb-3">{description}</p>
-              <p className="text-yellow-300 font-medium italic">{insight}</p>
-            </div>
-        ));
-
-        // --- 3. COMPONENT: CumulativeChart (V3: "FIXED") ---
-        const CumulativeChart = ({ activeDistrict }) => {
-            const colors = {
-                asoke: '#3B82F6', // blue-500
-                huaiKhwang: '#F97316', // orange-500
-                thaphra: '#EF4444', // red-500
-            };
-            
-            const getProps = (id) => ({
-                strokeWidth: activeDistrict === id ? 5 : 2,
-                opacity: (activeDistrict && activeDistrict !== id) ? 0.3 : 1,
-            });
-
-            return (
-                <div className="w-full h-96 md:h-[600px] bg-gray-800 rounded-lg p-6 pt-10 shadow-inner">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                            data={cumulativeData}
-                            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#4B5563" />
-                            <XAxis 
-                                dataKey="year" 
-                                type="number"
-                                domain={['dataMin', 'dataMax']}
-                                stroke="#9CA3AF" 
-                                tickFormatter={(tick) => Math.floor(tick)}
-                            />
-                            <YAxis stroke="#9CA3AF" />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
-                                labelStyle={{ color: '#F3F4F6' }}
-                            />
-                            <Legend />
-
-                            {/* !!! -------------------------------- !!!
-                              !!!      "อาวุธ" 10% (FIXED Version)    !!!
-                              !!! -------------------------------- !!!
-                            */}
-                            {/* FIX: ใช้ label prop แบบ "โง่ๆ" (String)
-                              แทนการใช้ <Label> component ที่ซับซ้อน 
-                              มันอาจจะไม่เอียง... แต่มัน "ไม่เละ" แน่นอน!
-                            */}
-                            <ReferenceLine 
-                                x={1997} 
-                                stroke="red" 
-                                strokeDasharray="4 4" 
-                                label={{ 
-                                    value: "วิกฤตต้มยำกุ้ง", 
-                                    fill: "red", 
-                                    position: "top", 
-                                    dy: -10 
-                                }}
-                            />
-                            
-                            <ReferenceLine 
-                                x={2016} 
-                                stroke="#67E8F9" // cyan-300
-                                strokeDasharray="4 4" 
-                                label={{ 
-                                    value: "The Big Bang (MRT + China)", 
-                                    fill: "#67E8F9", 
-                                    position: "top", 
-                                    dy: -10 
-                                }}
-                            />
-                            {/* !!! -------------------------------- !!!
-                              !!!      จบส่วน "อาวุธ" 10%           !!!
-                              !!! -------------------------------- !!!
-                            */}
-
-                            <Line
-                                type="monotone" dataKey="asoke" name="Asoke"
-                                stroke={colors.asoke} dot={true} {...getProps('asoke')}
-                                className="transition-all duration-300"
-                            />
-                            <Line
-                                type="monotone" dataKey="huaiKhwang" name="Huai Khwang"
-                                stroke={colors.huaiKhwang} dot={true} {...getProps('huaiKhwang')}
-                                className="transition-all duration-300"
-                            />
-                            <Line
-                                type="monotone" dataKey="thaphra" name="Thaphra"
-                                stroke={colors.thaphra} dot={true} {...getProps('thaphra')}
-                                className="transition-all duration-300"
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-            );
-        };
-
-        // --- 4. COMPONENT: DistrictAnalyzer (หน้าหลัก) ---
-        const DistrictAnalyzer = () => {
-            const [activeDistrict, setActiveDistrict] = useState(null);
-            const insightRefs = {
-                asoke: useRef(null),
-                huaiKhwang: useRef(null),
-                thaphra: useRef(null),
-            };
-
-            useEffect(() => {
-                const observerOptions = {
-                    root: null, 
-                    rootMargin: '-40% 0px -40% 0px',
-                    threshold: 0
-                };
-                const observerCallback = (entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const id = Object.keys(insightRefs).find(
-                                key => insightRefs[key].current === entry.target
-                            );
-                            setActiveDistrict(id);
-                        }
-                    });
-                };
-                const observer = new IntersectionObserver(observerCallback, observerOptions);
-                Object.values(insightRefs).forEach(ref => {
-                    if (ref.current) observer.observe(ref.current);
-                });
-                return () => {
-                    Object.values(insightRefs).forEach(ref => {
-                        if (ref.current) observer.unobserve(ref.current);
-                    });
-                };
-            }, []);
-
-            return (
-                <div className="min-h-screen text-white p-8 md:p-12">
-                    <header className="text-center mb-12">
-                        <h1 className="text-4xl md:text-5xl font-extrabold mb-2">
-                            The "Aha!" Moment
-                        </h1>
-                        <p className="text-xl text-gray-400">
-                            "เราไม่ได้โชว์ Data... เราโชว์ 'DNA' ของตลาด"
-                        </S                      </header>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                        
-                        {/* คอลัมน์ซ้าย: กราฟ (Sticky) */}
-                        <aside className="sticky-chart">
-                            <CumulativeChart activeDistrict={activeDistrict} />
-                        </aside>
-
-                        {/* คอลัมน์ขวา: Insights (Scrollytelling) */}
-                        <main>
-                            {insights.map((insight) => (
-                                <InsightCard
-                                    key={insight.id}
-                                    ref={insightRefs[insight.id]}
-                                    {...insight}
-                                />
-                            ))}
-                            {/* เว้นที่ว่างให้สกรอลล์การ์ดสุดท้ายได้ */}
-                            <div style={{ height: '50vh' }}></div>
-                        </main>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- 5. START THE APP ---
-        ReactDOM.render(<DistrictAnalyzer />, document.getElementById('root'));
-
-    </script>
-</body>
-</html>
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column; /* Stack columns vertically on smaller screens */
+                align-items: center; /* Center stacked
