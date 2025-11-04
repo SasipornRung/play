@@ -1,0 +1,257 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 0;
+}
+
+header {
+    background-color: #283747;
+    color: #fff;
+    padding: 1.5rem 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    margin: 0;
+    text-align: center;
+    font-size: 2.5em;
+    letter-spacing: 1px;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+    text-align: center;
+    margin-top: 20px;
+}
+
+nav ul li {
+    display: inline-block;
+    margin: 0 18px;
+}
+
+nav ul li a {
+    color: #aed6f1;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 8px 15px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+nav ul li a:hover {
+    background-color: #3a506b;
+    color: #fff;
+}
+
+.card {
+    background-color: #fff;
+    padding: 30px;
+    margin-bottom: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+    color: #007bff;
+    font-size: 2em;
+    margin-top: 0;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 15px;
+}
+
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+
+.controls label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.controls select,
+.controls input[type="text"] {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+    flex-grow: 1; /* Allow input/select to take more space */
+    max-width: 300px; /* Limit width */
+}
+
+.controls button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s ease;
+}
+
+.controls button:hover {
+    background-color: #0056b3;
+}
+
+.graph-container {
+    position: relative;
+    height: 400px; /* กำหนดความสูงของกราฟ */
+    margin-top: 20px;
+}
+
+#priceChart {
+    width: 100% !important; /* Override Chart.js default inline style */
+    height: 100% !important; /* Override Chart.js default inline style */
+}
+
+#event-details {
+    background-color: #e9ecef;
+    border-left: 5px solid #007bff;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 5px;
+}
+
+#event-details h3 {
+    margin-top: 0;
+    color: #007bff;
+}
+
+.hidden {
+    display: none;
+}
+
+/* DOM Visualization Styles */
+.dom-visualization-container {
+    margin-top: 30px;
+}
+
+.tree-view {
+    border: 1px solid #e0e0e0;
+    padding: 20px;
+    min-height: 200px;
+    background-color: #fdfdfd;
+    border-radius: 8px;
+    overflow: auto; /* Allow scrolling for large trees */
+}
+
+.tree-node {
+    margin-left: 20px;
+    position: relative;
+    padding: 2px 0;
+}
+
+.tree-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -10px;
+    border-left: 1px dashed #ccc;
+    height: 100%;
+}
+
+.tree-node:last-child::before {
+    height: 14px; /* Adjust for last child */
+}
+
+.tree-node-label {
+    background-color: #e6f7ff;
+    border: 1px solid #91d5ff;
+    padding: 3px 8px;
+    border-radius: 3px;
+    display: inline-block;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #0050b3;
+}
+
+.tree-node-label.element {
+    background-color: #d6f2c7; /* Greenish for elements */
+    border-color: #8cda68;
+    color: #2e7d32;
+}
+
+.tree-node-label.text {
+    background-color: #fffbe6; /* Yellowish for text nodes */
+    border-color: #ffe58f;
+    color: #ad8b00;
+}
+
+.dom-analysis-results {
+    margin-top: 30px;
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.dom-analysis-results h3 {
+    color: #007bff;
+    margin-bottom: 15px;
+}
+
+.dom-analysis-results ul {
+    list-style: disc;
+    margin-left: 20px;
+}
+
+.dom-analysis-results ul li {
+    margin-bottom: 8px;
+}
+
+
+footer {
+    background-color: #283747;
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem 0;
+    margin-top: 40px;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 2em;
+    }
+    nav ul li {
+        margin: 0 10px;
+    }
+    nav ul li a {
+        font-size: 1em;
+        padding: 6px 10px;
+    }
+    .card {
+        padding: 20px;
+    }
+    .card h2 {
+        font-size: 1.8em;
+    }
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .controls select,
+    .controls input[type="text"],
+    .controls button {
+        width: 100%;
+        max-width: unset;
+    }
+}
