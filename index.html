@@ -3,12 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project DNA - The "Aha!" Moment</title>
+    <title>Project DNA - The "Aha!" Moment (v3 FIXED)</title>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        blue: { 300: '#93C5FD', 500: '#3B82F6' },
+                        orange: { 300: '#FDBA74', 500: '#F97316' },
+                        red: { 300: '#FCA5A5', 500: '#EF4444' },
+                        yellow: { 300: '#FDE047' },
+                        cyan: { 300: '#67E8F9', 500: '#06B6D4' }
+                    }
+                }
+            }
+        }
+    </script>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react.dom.development.js"></script>
     
     <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.min.js"></script>
     
@@ -19,17 +35,9 @@
         .sticky-chart {
             position: sticky;
             top: 3rem;
-            height: calc(100vh - 8rem);
+            /* ให้ความสูงยืดหยุ่นตามเนื้อหา แต่ไม่เกินหน้าจอ */
+            max-height: calc(100vh - 6rem); 
         }
-        /* Tailwind's color palette */
-        .border-blue-500 { border-color: #3B82F6; }
-        .text-blue-300 { color: #93C5FD; }
-        .border-orange-500 { border-color: #F97316; }
-        .text-orange-300 { color: #FDBA74; }
-        .border-red-500 { border-color: #EF4444; }
-        .text-red-300 { color: #FCA5A5; }
-        .text-yellow-300 { color: #FDE047; }
-        .text-cyan-300 { color: #67E8F9; }
     </style>
 </head>
 <body>
@@ -41,53 +49,47 @@
         const { useState, useEffect, useRef, forwardRef } = React;
         const { 
             LineChart, Line, XAxis, YAxis, CartesianGrid, 
-            Tooltip, Legend, ResponsiveContainer, ReferenceLine, Label 
+            Tooltip, Legend, ResponsiveContainer, ReferenceLine
         } = Recharts;
 
         // --- 1. MOCK DATA (V2) ---
-        // (อัปเกรด "ปี" ให้เป็นตัวเลข และเพิ่มจุดข้อมูลตามประวัติศาสตร์!)
         const cumulativeData = [
-          // The "Frenzy" [cite: 23]
           { year: 1990, asoke: 4, huaiKhwang: 2, thaphra: 1 },
-          { year: 1993, asoke: 35, huaiKhwang: 6, thaphra: 2 }, // Peak [cite: 23]
-          { year: 1996, asoke: 55, huaiKhwang: 10, thaphra: 3 }, // Just before crash
-          // The "Great Filter" (วิกฤตต้มยำกุ้ง) 
-          { year: 1997, asoke: 56, huaiKhwang: 11, thaphra: 3 }, // The CRASH
-          // The "Lost Decade" 
+          { year: 1993, asoke: 35, huaiKhwang: 6, thaphra: 2 }, 
+          { year: 1996, asoke: 55, huaiKhwang: 10, thaphra: 3 },
+          { year: 1997, asoke: 56, huaiKhwang: 11, thaphra: 3 }, // CRASH
           { year: 2000, asoke: 58, huaiKhwang: 13, thaphra: 4 },
-          { year: 2004, asoke: 70, huaiKhwang: 20, thaphra: 5 }, // Rebirth starts [cite: 26]
+          { year: 2004, asoke: 70, huaiKhwang: 20, thaphra: 5 },
           { year: 2010, asoke: 128, huaiKhwang: 60, thaphra: 8 },
-          // The "Big Bang" 
-          { year: 2015, asoke: 165, huaiKhwang: 98, thaphra: 12 }, // Just before boom
-          { year: 2016, asoke: 170, huaiKhwang: 102, thaphra: 14 }, // The BOOM 
+          { year: 2015, asoke: 165, huaiKhwang: 98, thaphra: 12 },
+          { year: 2016, asoke: 170, huaiKhwang: 102, thaphra: 14 }, // BOOM
           { year: 2020, asoke: 200, huaiKhwang: 125, thaphra: 15 },
           { year: 2024, asoke: 210, huaiKhwang: 128, thaphra: 18 },
         ];
         
-        // (Insight Data จากไฟล์ Word)
         const insights = [
           {
             id: 'asoke',
             title: 'อโศก: "พยานแห่งประวัติศาสตร์"',
-            subtitle: 'The Historical Witness [cite: 21]',
-            description: 'กราฟอโศก (สีน้ำเงิน) คือตัวแทนของประวัติศาสตร์ [cite: 21] พุ่งขึ้นสุดขีดในปี 1993 [cite: 23] และ "ถูกล้างบาง" ด้วยวิกฤตต้มยำกุ้งปี 1997  กราฟนิ่งไปเกือบ 10 ปีก่อนจะฟื้นตัว [cite: 25, 26]',
-            insight: 'Actionable Insight: อโศกคือ "ตลาดวัยกลางคน" (Mature Market) [cite: 79] ความเสี่ยงคือ "ความล้าสมัย" (Aging) [cite: 82, 86]',
+            subtitle: 'The Historical Witness',
+            description: 'ดูกราฟอโศก (สีน้ำเงิน) พุ่งขึ้นสุดขีดในปี 1993 และ "ถูกล้างบาง" ด้วยวิกฤตต้มยำกุ้งปี 1997  กราฟนิ่งไปเกือบ 10 ปีก่อนจะฟื้นตัว',
+            insight: 'Actionable Insight: อโศกคือ "ตลาดวัยกลางคน" (Mature Market) ความเสี่ยงคือ "ความล้าสมัย" (Aging)',
             color: 'blue',
           },
           {
             id: 'huaiKhwang',
             title: 'ห้วยขวาง: "พรมแดนประชากรใหม่"',
-            subtitle: 'The New Demographic Frontier [cite: 32]',
-            description: 'ดูกราฟห้วยขวาง (สีส้ม) จะเห็นว่ามัน "เรียบสนิท" (Dead Flat Line) [cite: 34] มาตลอด จนกระทั่ง "ระเบิด" (Big Bang) [cite: 35] ขึ้นหลังปี 2016 สาเหตุคือ "The China Wave" [cite: 36] และ "Thai First Jobbers" [cite: 37]',
-            insight: 'Actionable Insight: ห้วยขวางคือ "ตลาดวัยรุ่น" (Adolescent Market) [cite: 87] ความเสี่ยงคือ "การแข่งขันกันเอง" (Intense Competition) [cite: 91]',
+            subtitle: 'The New Demographic Frontier',
+            description: 'ดูกราฟห้วยขวาง (สีส้ม) "เรียบสนิท" มาตลอด จนกระทั่ง "ระเบิด" (Big Bang) ขึ้นหลังปี 2016  สาเหตุคือ "The China Wave" และ "Thai First Jobbers"',
+            insight: 'Actionable Insight: ห้วยขวางคือ "ตลาดวัยรุ่น" (Adolescent Market) ความเสี่ยงคือ "การแข่งขันกันเอง" (Intense Competition)',
             color: 'orange',
           },
           {
             id: 'thaphra',
             title: 'ท่าพระ: "ชุมทางแห่งอนาคต"',
-            subtitle: 'The Infrastructure Hub [cite: 40]',
-            description: 'ท่าพระ (สีแดง) ก็ "เรียบสนิท" เหมือนกัน [cite: 42] จุดเปลี่ยนคือปี 2016-2021 เมื่อ "MRT สายสีน้ำเงินส่วนต่อขยาย" [cite: 43] ทำให้ที่นี่กลายเป็น Interchange Developer จึงเข้ามาก่อน Demand [cite: 44]',
-            insight: 'Actionable Insight: ตลาดนี้ "เกิดจากรางรถไฟ ไม่ใช่เกิดจากคน" [cite: 46] ความเสี่ยงคือ "Demand ที่คาดไว้อาจไม่มาจริง" [cite: 99]',
+            subtitle: 'The Infrastructure Hub',
+            description: 'ท่าพระ (สีแดง) ก็ "เรียบสนิท" เหมือนกัน จุดเปลี่ยนคือปี 2016-2021 เมื่อ "MRT สายสีน้ำเงินส่วนต่อขยาย"  ทำให้ที่นี่กลายเป็น Interchange',
+            insight: 'Actionable Insight: ตลาดนี้ "เกิดจากรางรถไฟ ไม่ใช่เกิดจากคน" ความเสี่ยงคือ "Demand ที่คาดไว้อาจไม่มาจริง"',
             color: 'red',
           },
         ];
@@ -102,7 +104,7 @@
             </div>
         ));
 
-        // --- 3. COMPONENT: CumulativeChart (V2: The "Aha!" Moment) ---
+        // --- 3. COMPONENT: CumulativeChart (V3: "FIXED") ---
         const CumulativeChart = ({ activeDistrict }) => {
             const colors = {
                 asoke: '#3B82F6', // blue-500
@@ -116,11 +118,11 @@
             });
 
             return (
-                <div className="w-full h-96 md:h-full bg-gray-800 rounded-lg p-6 pt-10 shadow-inner">
+                <div className="w-full h-96 md:h-[600px] bg-gray-800 rounded-lg p-6 pt-10 shadow-inner">
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                             data={cumulativeData}
-                            margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="#4B5563" />
                             <XAxis 
@@ -128,7 +130,7 @@
                                 type="number"
                                 domain={['dataMin', 'dataMax']}
                                 stroke="#9CA3AF" 
-                                tickFormatter={(tick) => Math.floor(tick)} // แสดงเป็นเลขปีเต็ม
+                                tickFormatter={(tick) => Math.floor(tick)}
                             />
                             <YAxis stroke="#9CA3AF" />
                             <Tooltip 
@@ -138,34 +140,36 @@
                             <Legend />
 
                             {/* !!! -------------------------------- !!!
-                              !!!      นี่คือ "อาวุธ" 10% ของเรา      !!!
+                              !!!      "อาวุธ" 10% (FIXED Version)    !!!
                               !!! -------------------------------- !!!
                             */}
-                            <ReferenceLine x={1997} stroke="red" strokeDasharray="4 4">
-                              <Label 
-                                value="วิกฤตต้มยำกุ้ง (The Great Filter)" 
-                                position="top"
-                                fill="red" 
-                                fontSize={14} 
-                                fontWeight="bold"
-                                angle={-45}
-                                dx={-50}
-                                dy={-10}
-                              />
-                            </ReferenceLine>
-
-                            <ReferenceLine x={2016} stroke="#67E8F9" strokeDasharray="4 4">
-                              <Label 
-                                value="The Big Bang (MRT + China Wave)" 
-                                position="top"
-                                fill="#67E8F9" 
-                                fontSize={14} 
-                                fontWeight="bold"
-                                angle={-45}
-                                dx={-50}
-                                dy={-10}
-                              />
-                            </ReferenceLine>
+                            {/* FIX: ใช้ label prop แบบ "โง่ๆ" (String)
+                              แทนการใช้ <Label> component ที่ซับซ้อน 
+                              มันอาจจะไม่เอียง... แต่มัน "ไม่เละ" แน่นอน!
+                            */}
+                            <ReferenceLine 
+                                x={1997} 
+                                stroke="red" 
+                                strokeDasharray="4 4" 
+                                label={{ 
+                                    value: "วิกฤตต้มยำกุ้ง", 
+                                    fill: "red", 
+                                    position: "top", 
+                                    dy: -10 
+                                }}
+                            />
+                            
+                            <ReferenceLine 
+                                x={2016} 
+                                stroke="#67E8F9" // cyan-300
+                                strokeDasharray="4 4" 
+                                label={{ 
+                                    value: "The Big Bang (MRT + China)", 
+                                    fill: "#67E8F9", 
+                                    position: "top", 
+                                    dy: -10 
+                                }}
+                            />
                             {/* !!! -------------------------------- !!!
                               !!!      จบส่วน "อาวุธ" 10%           !!!
                               !!! -------------------------------- !!!
@@ -204,10 +208,9 @@
             useEffect(() => {
                 const observerOptions = {
                     root: null, 
-                    rootMargin: '-40% 0px -40% 0px', // Highlight ตอนการ์ดอยู่กลางจอ
+                    rootMargin: '-40% 0px -40% 0px',
                     threshold: 0
                 };
-
                 const observerCallback = (entries) => {
                     entries.forEach(entry => {
                         if (entry.isIntersecting) {
@@ -218,7 +221,6 @@
                         }
                     });
                 };
-
                 const observer = new IntersectionObserver(observerCallback, observerOptions);
                 Object.values(insightRefs).forEach(ref => {
                     if (ref.current) observer.observe(ref.current);
@@ -238,8 +240,7 @@
                         </h1>
                         <p className="text-xl text-gray-400">
                             "เราไม่ได้โชว์ Data... เราโชว์ 'DNA' ของตลาด"
-                        </p>
-                    </header>
+                        </S                      </header>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                         
@@ -257,6 +258,7 @@
                                     {...insight}
                                 />
                             ))}
+                            {/* เว้นที่ว่างให้สกรอลล์การ์ดสุดท้ายได้ */}
                             <div style={{ height: '50vh' }}></div>
                         </main>
                     </div>
