@@ -1,274 +1,272 @@
-# asoke_geocode_full.py
-import os, json, time, math, random
-from typing import Optional, Tuple, List, Dict, Any
-import pandas as pd
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-from tqdm import tqdm
-from slugify import slugify
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project DNA - The "Aha!" Moment</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.min.js"></script>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-# ───────────────────────── CONFIG ─────────────────────────
-INPUT_XLSX  = "Asoke_Baseline.xlsx"           # ชื่อไฟล์อินพุต
-OUTPUT_XLSX = "Asoke_geocoded_final.xlsx"     # ชื่อไฟล์เอาต์พุต
-CACHE_JSON  = "Asoke_geocode_cache.json"      # cache geocode
+    <style>
+        body { background-color: #111827; /* bg-gray-900 */ }
+        .sticky-chart {
+            position: sticky;
+            top: 3rem;
+            height: calc(100vh - 8rem);
+        }
+        /* Tailwind's color palette */
+        .border-blue-500 { border-color: #3B82F6; }
+        .text-blue-300 { color: #93C5FD; }
+        .border-orange-500 { border-color: #F97316; }
+        .text-orange-300 { color: #FDBA74; }
+        .border-red-500 { border-color: #EF4444; }
+        .text-red-300 { color: #FCA5A5; }
+        .text-yellow-300 { color: #FDE047; }
+        .text-cyan-300 { color: #67E8F9; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-USER_AGENT      = "mook-asoke-test"
-TIMEOUT         = 10
-SLEEP_BETWEEN_S = 1.1     # เคารพ rate limit ของ Nominatim
-MAX_RETRIES     = 3
-BACKOFF_BASE_S  = 2.0
-AUTOSAVE_EVERY  = 10
+    <script type="text/babel">
 
-# จุดอ้างอิงอโศก (center สำหรับจัดลำดับความใกล้)
-ASOKE_BTS = (13.736717, 100.560319)
-MRT_SUKHUMVIT = (13.737845, 100.560933)
+        // Import ที่จำเป็น
+        const { useState, useEffect, useRef, forwardRef } = React;
+        const { 
+            LineChart, Line, XAxis, YAxis, CartesianGrid, 
+            Tooltip, Legend, ResponsiveContainer, ReferenceLine, Label 
+        } = Recharts;
 
-# Viewbox (lat, lon) รอบอโศก
-TOP_LAT, BOTTOM_LAT = 13.7470, 13.7280
-LEFT_LON, RIGHT_LON = 100.5520, 100.5705
-VIEWBOX_GEO = [(TOP_LAT, LEFT_LON), (BOTTOM_LAT, RIGHT_LON)]
+        // --- 1. MOCK DATA (V2) ---
+        // (อัปเกรด "ปี" ให้เป็นตัวเลข และเพิ่มจุดข้อมูลตามประวัติศาสตร์!)
+        const cumulativeData = [
+          // The "Frenzy" [cite: 23]
+          { year: 1990, asoke: 4, huaiKhwang: 2, thaphra: 1 },
+          { year: 1993, asoke: 35, huaiKhwang: 6, thaphra: 2 }, // Peak [cite: 23]
+          { year: 1996, asoke: 55, huaiKhwang: 10, thaphra: 3 }, // Just before crash
+          // The "Great Filter" (วิกฤตต้มยำกุ้ง) 
+          { year: 1997, asoke: 56, huaiKhwang: 11, thaphra: 3 }, // The CRASH
+          // The "Lost Decade" 
+          { year: 2000, asoke: 58, huaiKhwang: 13, thaphra: 4 },
+          { year: 2004, asoke: 70, huaiKhwang: 20, thaphra: 5 }, // Rebirth starts [cite: 26]
+          { year: 2010, asoke: 128, huaiKhwang: 60, thaphra: 8 },
+          // The "Big Bang" 
+          { year: 2015, asoke: 165, huaiKhwang: 98, thaphra: 12 }, // Just before boom
+          { year: 2016, asoke: 170, huaiKhwang: 102, thaphra: 14 }, // The BOOM 
+          { year: 2020, asoke: 200, huaiKhwang: 125, thaphra: 15 },
+          { year: 2024, asoke: 210, huaiKhwang: 128, thaphra: 18 },
+        ];
+        
+        // (Insight Data จากไฟล์ Word)
+        const insights = [
+          {
+            id: 'asoke',
+            title: 'อโศก: "พยานแห่งประวัติศาสตร์"',
+            subtitle: 'The Historical Witness [cite: 21]',
+            description: 'กราฟอโศก (สีน้ำเงิน) คือตัวแทนของประวัติศาสตร์ [cite: 21] พุ่งขึ้นสุดขีดในปี 1993 [cite: 23] และ "ถูกล้างบาง" ด้วยวิกฤตต้มยำกุ้งปี 1997  กราฟนิ่งไปเกือบ 10 ปีก่อนจะฟื้นตัว [cite: 25, 26]',
+            insight: 'Actionable Insight: อโศกคือ "ตลาดวัยกลางคน" (Mature Market) [cite: 79] ความเสี่ยงคือ "ความล้าสมัย" (Aging) [cite: 82, 86]',
+            color: 'blue',
+          },
+          {
+            id: 'huaiKhwang',
+            title: 'ห้วยขวาง: "พรมแดนประชากรใหม่"',
+            subtitle: 'The New Demographic Frontier [cite: 32]',
+            description: 'ดูกราฟห้วยขวาง (สีส้ม) จะเห็นว่ามัน "เรียบสนิท" (Dead Flat Line) [cite: 34] มาตลอด จนกระทั่ง "ระเบิด" (Big Bang) [cite: 35] ขึ้นหลังปี 2016 สาเหตุคือ "The China Wave" [cite: 36] และ "Thai First Jobbers" [cite: 37]',
+            insight: 'Actionable Insight: ห้วยขวางคือ "ตลาดวัยรุ่น" (Adolescent Market) [cite: 87] ความเสี่ยงคือ "การแข่งขันกันเอง" (Intense Competition) [cite: 91]',
+            color: 'orange',
+          },
+          {
+            id: 'thaphra',
+            title: 'ท่าพระ: "ชุมทางแห่งอนาคต"',
+            subtitle: 'The Infrastructure Hub [cite: 40]',
+            description: 'ท่าพระ (สีแดง) ก็ "เรียบสนิท" เหมือนกัน [cite: 42] จุดเปลี่ยนคือปี 2016-2021 เมื่อ "MRT สายสีน้ำเงินส่วนต่อขยาย" [cite: 43] ทำให้ที่นี่กลายเป็น Interchange Developer จึงเข้ามาก่อน Demand [cite: 44]',
+            insight: 'Actionable Insight: ตลาดนี้ "เกิดจากรางรถไฟ ไม่ใช่เกิดจากคน" [cite: 46] ความเสี่ยงคือ "Demand ที่คาดไว้อาจไม่มาจริง" [cite: 99]',
+            color: 'red',
+          },
+        ];
 
-# กรองระยะสูงสุด (ตอน fallback แบบ unbounded)
-MAX_DIST_KM = 5.0
+        // --- 2. COMPONENT: InsightCard ---
+        const InsightCard = forwardRef(({ title, subtitle, description, insight, color }, ref) => (
+            <div ref={ref} className={`p-6 mb-8 border-l-4 border-${color}-500 bg-gray-800 rounded-lg shadow-lg opacity-95`}>
+              <h2 className={`text-2xl font-bold text-${color}-300`}>{title}</h2>
+              <h3 className="text-lg font-semibold text-gray-300 mb-2">{subtitle}</h3>
+              <p className="text-gray-400 mb-3">{description}</p>
+              <p className="text-yellow-300 font-medium italic">{insight}</p>
+            </div>
+        ));
 
-# แบ่งโซนตามระยะจาก BTS Asoke (เมตร)
-ZONE_BREAKS_M = [500, 1000, 1500, 2000]
-# ──────────────────────────────────────────────────────────
+        // --- 3. COMPONENT: CumulativeChart (V2: The "Aha!" Moment) ---
+        const CumulativeChart = ({ activeDistrict }) => {
+            const colors = {
+                asoke: '#3B82F6', // blue-500
+                huaiKhwang: '#F97316', // orange-500
+                thaphra: '#EF4444', // red-500
+            };
+            
+            const getProps = (id) => ({
+                strokeWidth: activeDistrict === id ? 5 : 2,
+                opacity: (activeDistrict && activeDistrict !== id) ? 0.3 : 1,
+            });
 
-# ─────────────── Utils
-def safe_str(x) -> str:
-    if x is None or (isinstance(x, float) and math.isnan(x)): return ""
-    return str(x).strip()
+            return (
+                <div className="w-full h-96 md:h-full bg-gray-800 rounded-lg p-6 pt-10 shadow-inner">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                            data={cumulativeData}
+                            margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#4B5563" />
+                            <XAxis 
+                                dataKey="year" 
+                                type="number"
+                                domain={['dataMin', 'dataMax']}
+                                stroke="#9CA3AF" 
+                                tickFormatter={(tick) => Math.floor(tick)} // แสดงเป็นเลขปีเต็ม
+                            />
+                            <YAxis stroke="#9CA3AF" />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                                labelStyle={{ color: '#F3F4F6' }}
+                            />
+                            <Legend />
 
-def norm_key(name_th: str, name_en: str) -> str:
-    base = safe_str(name_en) or safe_str(name_th)
-    return slugify(base, separator="_")
+                            {/* !!! -------------------------------- !!!
+                              !!!      นี่คือ "อาวุธ" 10% ของเรา      !!!
+                              !!! -------------------------------- !!!
+                            */}
+                            <ReferenceLine x={1997} stroke="red" strokeDasharray="4 4">
+                              <Label 
+                                value="วิกฤตต้มยำกุ้ง (The Great Filter)" 
+                                position="top"
+                                fill="red" 
+                                fontSize={14} 
+                                fontWeight="bold"
+                                angle={-45}
+                                dx={-50}
+                                dy={-10}
+                              />
+                            </ReferenceLine>
 
-def zone_label(dist_m: float) -> str:
-    b = ZONE_BREAKS_M
-    if dist_m <= b[0]: return "0–500m"
-    if dist_m <= b[1]: return "500m–1km"
-    if dist_m <= b[2]: return "1–1.5km"
-    if dist_m <= b[3]: return "1.5–2km"
-    return "2km+"
+                            <ReferenceLine x={2016} stroke="#67E8F9" strokeDasharray="4 4">
+                              <Label 
+                                value="The Big Bang (MRT + China Wave)" 
+                                position="top"
+                                fill="#67E8F9" 
+                                fontSize={14} 
+                                fontWeight="bold"
+                                angle={-45}
+                                dx={-50}
+                                dy={-10}
+                              />
+                            </ReferenceLine>
+                            {/* !!! -------------------------------- !!!
+                              !!!      จบส่วน "อาวุธ" 10%           !!!
+                              !!! -------------------------------- !!!
+                            */}
 
-def load_cache(path: str) -> Dict[str, Any]:
-    if os.path.exists(path):
-        try:
-            return json.load(open(path, "r", encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
+                            <Line
+                                type="monotone" dataKey="asoke" name="Asoke"
+                                stroke={colors.asoke} dot={true} {...getProps('asoke')}
+                                className="transition-all duration-300"
+                            />
+                            <Line
+                                type="monotone" dataKey="huaiKhwang" name="Huai Khwang"
+                                stroke={colors.huaiKhwang} dot={true} {...getProps('huaiKhwang')}
+                                className="transition-all duration-300"
+                            />
+                            <Line
+                                type="monotone" dataKey="thaphra" name="Thaphra"
+                                stroke={colors.thaphra} dot={true} {...getProps('thaphra')}
+                                className="transition-all duration-300"
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            );
+        };
 
-def save_cache(path: str, data: Dict[str, Any]) -> None:
-    tmp = path + ".tmp"
-    json.dump(data, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-    os.replace(tmp, path)
+        // --- 4. COMPONENT: DistrictAnalyzer (หน้าหลัก) ---
+        const DistrictAnalyzer = () => {
+            const [activeDistrict, setActiveDistrict] = useState(null);
+            const insightRefs = {
+                asoke: useRef(null),
+                huaiKhwang: useRef(null),
+                thaphra: useRef(null),
+            };
 
-# ─────────────── Query builders (logic ล่าสุด)
-def variants(base: str) -> List[str]:
-    base = base.strip()
-    v = {base, f"{base} Condo", f"{base} Condominium"}
-    vv = set(v)
-    for s in list(v):
-        vv.add(s.replace("Watthana", "Wattana"))
-        vv.add(s.replace("Wattana", "Watthana"))
-    tails = [
-        "Asoke, Bangkok, Thailand",
-        "Sukhumvit, Asoke, Bangkok, Thailand",
-        "Sukhumvit 19, Watthana, Bangkok, Thailand",
-        "วัฒนา, กรุงเทพมหานคร, ประเทศไทย",
-        "Bangkok 10110, Thailand",
-        "Bangkok, Thailand"
-    ]
-    out = []
-    for s in vv:
-        for t in tails:
-            out.append(f"{s}, {t}")
-    # unique preserve order
-    seen, uniq = set(), []
-    for q in out:
-        if q not in seen:
-            seen.add(q); uniq.append(q)
-    return uniq
+            useEffect(() => {
+                const observerOptions = {
+                    root: null, 
+                    rootMargin: '-40% 0px -40% 0px', // Highlight ตอนการ์ดอยู่กลางจอ
+                    threshold: 0
+                };
 
-def build_queries(name_th: str, name_en: str) -> List[str]:
-    bases = []
-    if name_en: bases.append(name_en.strip())
-    if name_th: bases.append(name_th.strip())
+                const observerCallback = (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const id = Object.keys(insightRefs).find(
+                                key => insightRefs[key].current === entry.target
+                            );
+                            setActiveDistrict(id);
+                        }
+                    });
+                };
 
-    qs = []
-    for b in bases:
-        if b: qs.extend(variants(b))
-    # base-only เป็น fallback ท้ายสุด
-    for b in bases:
-        if b: qs.append(b)
-    # unique
-    seen, uniq = set(), []
-    for q in qs:
-        if q and q not in seen:
-            seen.add(q); uniq.append(q)
-    return uniq
+                const observer = new IntersectionObserver(observerCallback, observerOptions);
+                Object.values(insightRefs).forEach(ref => {
+                    if (ref.current) observer.observe(ref.current);
+                });
+                return () => {
+                    Object.values(insightRefs).forEach(ref => {
+                        if (ref.current) observer.unobserve(ref.current);
+                    });
+                };
+            }, []);
 
-def choose_nearest(cands, center: Tuple[float, float], max_km: Optional[float]=None):
-    if not cands: return None
-    best, best_d = None, 1e9
-    for c in cands:
-        d = geodesic((c.latitude, c.longitude), center).km
-        if d < best_d:
-            best, best_d = c, d
-    if max_km is not None and best_d > max_km:
-        return None
-    return best, best_d
+            return (
+                <div className="min-h-screen text-white p-8 md:p-12">
+                    <header className="text-center mb-12">
+                        <h1 className="text-4xl md:text-5xl font-extrabold mb-2">
+                            The "Aha!" Moment
+                        </h1>
+                        <p className="text-xl text-gray-400">
+                            "เราไม่ได้โชว์ Data... เราโชว์ 'DNA' ของตลาด"
+                        </p>
+                    </header>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        
+                        {/* คอลัมน์ซ้าย: กราฟ (Sticky) */}
+                        <aside className="sticky-chart">
+                            <CumulativeChart activeDistrict={activeDistrict} />
+                        </aside>
 
-# ─────────────── Core geocode (สามชั้น)
-def geocode_with_fallback(geo: Nominatim, name_th: str, name_en: str) -> Optional[Dict[str, Any]]:
-    qs = build_queries(name_th, name_en)
+                        {/* คอลัมน์ขวา: Insights (Scrollytelling) */}
+                        <main>
+                            {insights.map((insight) => (
+                                <InsightCard
+                                    key={insight.id}
+                                    ref={insightRefs[insight.id]}
+                                    {...insight}
+                                />
+                            ))}
+                            <div style={{ height: '50vh' }}></div>
+                        </main>
+                    </div>
+                </div>
+            );
+        };
 
-    # A) bounded (ภายใน viewbox อโศก)
-    for q in qs:
-        try:
-            res = geo.geocode(q, exactly_one=False, addressdetails=True,
-                              country_codes="th", viewbox=VIEWBOX_GEO, bounded=True, timeout=TIMEOUT)
-            pick = choose_nearest(res, ASOKE_BTS)
-            if pick:
-                c, d = pick
-                return dict(lat=c.latitude, lon=c.longitude, address=getattr(c, "address", None),
-                            method="bounded", query=q, dist_asoke_km=d)
-        except (GeocoderTimedOut, GeocoderServiceError):
-            time.sleep(SLEEP_BETWEEN_S + random.uniform(0,0.5))
-        except Exception:
-            pass
-        time.sleep(SLEEP_BETWEEN_S)
+        // --- 5. START THE APP ---
+        ReactDOM.render(<DistrictAnalyzer />, document.getElementById('root'));
 
-    # B) unbounded + กรองระยะเอง ≤ 5 กม.
-    for q in qs:
-        try:
-            res = geo.geocode(q, exactly_one=False, addressdetails=True,
-                              country_codes="th", timeout=TIMEOUT)
-            pick = choose_nearest(res, ASOKE_BTS, max_km=MAX_DIST_KM)
-            if pick:
-                c, d = pick
-                return dict(lat=c.latitude, lon=c.longitude, address=getattr(c, "address", None),
-                            method="unbounded<=5km", query=q, dist_asoke_km=d)
-        except (GeocoderTimedOut, GeocoderServiceError):
-            time.sleep(SLEEP_BETWEEN_S + random.uniform(0,0.5))
-        except Exception:
-            pass
-        time.sleep(SLEEP_BETWEEN_S)
-
-    # C) base-only สั้นมาก แล้วกรองระยะ
-    base = safe_str(name_en) or safe_str(name_th)
-    if base:
-        try:
-            res = geo.geocode(base, exactly_one=False, addressdetails=True,
-                              country_codes="th", timeout=TIMEOUT)
-            pick = choose_nearest(res, ASOKE_BTS, max_km=MAX_DIST_KM)
-            if pick:
-                c, d = pick
-                return dict(lat=c.latitude, lon=c.longitude, address=getattr(c, "address", None),
-                            method="base-only<=5km", query=base, dist_asoke_km=d)
-        except Exception:
-            pass
-    return None
-
-# ─────────────── Main
-def main():
-    assert os.path.exists(INPUT_XLSX), f"ไม่พบไฟล์ {INPUT_XLSX}"
-    df = pd.read_excel(INPUT_XLSX)
-
-    if ("Project_Name" not in df.columns) and ("CONDO_NAME" not in df.columns):
-        raise ValueError("ต้องมีคอลัมน์อย่างน้อย 1: Project_Name หรือ CONDO_NAME")
-
-    # เตรียมคอลัมน์ผลลัพธ์
-    for col in ["lat","lon","full_address","osm_method","query_used",
-                "dist_asoke_m","dist_sukhumvit_m","asoke_zone","status"]:
-        if col not in df.columns:
-            df[col] = None
-
-    cache = load_cache(CACHE_JSON)
-    geo = Nominatim(user_agent=USER_AGENT, timeout=TIMEOUT)
-
-    # ทำเป็นกลุ่มตาม key (ลดการยิงซ้ำ)
-    buckets: Dict[str, List[int]] = {}
-    for idx, row in df.iterrows():
-        th = safe_str(row.get("CONDO_NAME"))
-        en = safe_str(row.get("Project_Name"))
-        key = norm_key(th, en)
-        buckets.setdefault(key, []).append(idx)
-
-    keys = list(buckets.keys())
-    pbar = tqdm(keys, ncols=100, unit="proj", desc="Geocoding Asoke")
-
-    processed = 0
-    for key in pbar:
-        if key in cache:
-            result = cache[key]
-        else:
-            # ดึงตัวแทนแถวแรกของกลุ่มเพื่อสร้าง query
-            idx0 = buckets[key][0]
-            th = safe_str(df.at[idx0, "CONDO_NAME"]) if "CONDO_NAME" in df.columns else ""
-            en = safe_str(df.at[idx0, "Project_Name"]) if "Project_Name" in df.columns else ""
-
-            # retry + backoff
-            result = None
-            for attempt in range(1, MAX_RETRIES+1):
-                try:
-                    result = geocode_with_fallback(geo, th, en)
-                    break
-                except Exception as e:
-                    wait = BACKOFF_BASE_S * attempt
-                    pbar.write(f"[WARN] Retry({attempt}) {en or th}: {e} → sleep {wait:.1f}s")
-                    time.sleep(wait)
-            cache[key] = result
-            save_cache(CACHE_JSON, cache)
-
-        # กระจายผลให้ทุก index ในกลุ่มเดียวกัน
-        for idx in buckets[key]:
-            if result:
-                lat, lon = float(result["lat"]), float(result["lon"])
-                d_asoke_m = geodesic((lat,lon), ASOKE_BTS).km * 1000
-                d_suk_m   = geodesic((lat,lon), MRT_SUKHUMVIT).km * 1000
-
-                df.at[idx,"lat"] = lat
-                df.at[idx,"lon"] = lon
-                df.at[idx,"full_address"] = result.get("address")
-                df.at[idx,"osm_method"] = result.get("method")
-                df.at[idx,"query_used"] = result.get("query")
-                df.at[idx,"dist_asoke_m"] = round(d_asoke_m, 2)
-                df.at[idx,"dist_sukhumvit_m"] = round(d_suk_m, 2)
-                df.at[idx,"asoke_zone"] = zone_label(d_asoke_m)
-                df.at[idx,"status"] = "FOUND"
-            else:
-                df.at[idx,"status"] = "NOT_FOUND"
-
-        processed += 1
-        if processed % AUTOSAVE_EVERY == 0:
-            df.to_excel(OUTPUT_XLSX, index=False)
-            pbar.write(f"...autosaved {processed}/{len(keys)} → {OUTPUT_XLSX}")
-
-    pbar.close()
-
-    # สรุป + เขียนไฟล์ท้ายงาน (พร้อมชีตแยกโซน)
-    found = int((df["status"] == "FOUND").sum())
-    total = len(df)
-    print(f"\nFound {found}/{total} ({found*100/total:.1f}%)")
-
-    with pd.ExcelWriter(OUTPUT_XLSX, engine="openpyxl") as w:
-        df.to_excel(w, sheet_name="all", index=False)
-        for z in ["0–500m","500m–1km","1–1.5km","1.5–2km","2km+"]:
-            df[df["asoke_zone"]==z].to_excel(w, sheet_name=z, index=False)
-
-    # preview NOT_FOUND (20 รายการแรก)
-    miss = df[df["status"]!="FOUND"][["Project_Name","CONDO_NAME"]].head(20)
-    if len(miss):
-        print("\nNOT_FOUND (top 20):")
-        print(miss.to_string(index=False))
-
-    print(f"\nSaved → {OUTPUT_XLSX}")
-    print("Done ✅")
-
-if __name__ == "__main__":
-    random.seed(42)  # deterministic
-    main()
+    </script>
+</body>
+</html>
