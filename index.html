@@ -1,0 +1,274 @@
+# asoke_geocode_full.py
+import os, json, time, math, random
+from typing import Optional, Tuple, List, Dict, Any
+import pandas as pd
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+from tqdm import tqdm
+from slugify import slugify
+
+# ───────────────────────── CONFIG ─────────────────────────
+INPUT_XLSX  = "Asoke_Baseline.xlsx"           # ชื่อไฟล์อินพุต
+OUTPUT_XLSX = "Asoke_geocoded_final.xlsx"     # ชื่อไฟล์เอาต์พุต
+CACHE_JSON  = "Asoke_geocode_cache.json"      # cache geocode
+
+USER_AGENT      = "mook-asoke-test"
+TIMEOUT         = 10
+SLEEP_BETWEEN_S = 1.1     # เคารพ rate limit ของ Nominatim
+MAX_RETRIES     = 3
+BACKOFF_BASE_S  = 2.0
+AUTOSAVE_EVERY  = 10
+
+# จุดอ้างอิงอโศก (center สำหรับจัดลำดับความใกล้)
+ASOKE_BTS = (13.736717, 100.560319)
+MRT_SUKHUMVIT = (13.737845, 100.560933)
+
+# Viewbox (lat, lon) รอบอโศก
+TOP_LAT, BOTTOM_LAT = 13.7470, 13.7280
+LEFT_LON, RIGHT_LON = 100.5520, 100.5705
+VIEWBOX_GEO = [(TOP_LAT, LEFT_LON), (BOTTOM_LAT, RIGHT_LON)]
+
+# กรองระยะสูงสุด (ตอน fallback แบบ unbounded)
+MAX_DIST_KM = 5.0
+
+# แบ่งโซนตามระยะจาก BTS Asoke (เมตร)
+ZONE_BREAKS_M = [500, 1000, 1500, 2000]
+# ──────────────────────────────────────────────────────────
+
+# ─────────────── Utils
+def safe_str(x) -> str:
+    if x is None or (isinstance(x, float) and math.isnan(x)): return ""
+    return str(x).strip()
+
+def norm_key(name_th: str, name_en: str) -> str:
+    base = safe_str(name_en) or safe_str(name_th)
+    return slugify(base, separator="_")
+
+def zone_label(dist_m: float) -> str:
+    b = ZONE_BREAKS_M
+    if dist_m <= b[0]: return "0–500m"
+    if dist_m <= b[1]: return "500m–1km"
+    if dist_m <= b[2]: return "1–1.5km"
+    if dist_m <= b[3]: return "1.5–2km"
+    return "2km+"
+
+def load_cache(path: str) -> Dict[str, Any]:
+    if os.path.exists(path):
+        try:
+            return json.load(open(path, "r", encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def save_cache(path: str, data: Dict[str, Any]) -> None:
+    tmp = path + ".tmp"
+    json.dump(data, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+# ─────────────── Query builders (logic ล่าสุด)
+def variants(base: str) -> List[str]:
+    base = base.strip()
+    v = {base, f"{base} Condo", f"{base} Condominium"}
+    vv = set(v)
+    for s in list(v):
+        vv.add(s.replace("Watthana", "Wattana"))
+        vv.add(s.replace("Wattana", "Watthana"))
+    tails = [
+        "Asoke, Bangkok, Thailand",
+        "Sukhumvit, Asoke, Bangkok, Thailand",
+        "Sukhumvit 19, Watthana, Bangkok, Thailand",
+        "วัฒนา, กรุงเทพมหานคร, ประเทศไทย",
+        "Bangkok 10110, Thailand",
+        "Bangkok, Thailand"
+    ]
+    out = []
+    for s in vv:
+        for t in tails:
+            out.append(f"{s}, {t}")
+    # unique preserve order
+    seen, uniq = set(), []
+    for q in out:
+        if q not in seen:
+            seen.add(q); uniq.append(q)
+    return uniq
+
+def build_queries(name_th: str, name_en: str) -> List[str]:
+    bases = []
+    if name_en: bases.append(name_en.strip())
+    if name_th: bases.append(name_th.strip())
+
+    qs = []
+    for b in bases:
+        if b: qs.extend(variants(b))
+    # base-only เป็น fallback ท้ายสุด
+    for b in bases:
+        if b: qs.append(b)
+    # unique
+    seen, uniq = set(), []
+    for q in qs:
+        if q and q not in seen:
+            seen.add(q); uniq.append(q)
+    return uniq
+
+def choose_nearest(cands, center: Tuple[float, float], max_km: Optional[float]=None):
+    if not cands: return None
+    best, best_d = None, 1e9
+    for c in cands:
+        d = geodesic((c.latitude, c.longitude), center).km
+        if d < best_d:
+            best, best_d = c, d
+    if max_km is not None and best_d > max_km:
+        return None
+    return best, best_d
+
+# ─────────────── Core geocode (สามชั้น)
+def geocode_with_fallback(geo: Nominatim, name_th: str, name_en: str) -> Optional[Dict[str, Any]]:
+    qs = build_queries(name_th, name_en)
+
+    # A) bounded (ภายใน viewbox อโศก)
+    for q in qs:
+        try:
+            res = geo.geocode(q, exactly_one=False, addressdetails=True,
+                              country_codes="th", viewbox=VIEWBOX_GEO, bounded=True, timeout=TIMEOUT)
+            pick = choose_nearest(res, ASOKE_BTS)
+            if pick:
+                c, d = pick
+                return dict(lat=c.latitude, lon=c.longitude, address=getattr(c, "address", None),
+                            method="bounded", query=q, dist_asoke_km=d)
+        except (GeocoderTimedOut, GeocoderServiceError):
+            time.sleep(SLEEP_BETWEEN_S + random.uniform(0,0.5))
+        except Exception:
+            pass
+        time.sleep(SLEEP_BETWEEN_S)
+
+    # B) unbounded + กรองระยะเอง ≤ 5 กม.
+    for q in qs:
+        try:
+            res = geo.geocode(q, exactly_one=False, addressdetails=True,
+                              country_codes="th", timeout=TIMEOUT)
+            pick = choose_nearest(res, ASOKE_BTS, max_km=MAX_DIST_KM)
+            if pick:
+                c, d = pick
+                return dict(lat=c.latitude, lon=c.longitude, address=getattr(c, "address", None),
+                            method="unbounded<=5km", query=q, dist_asoke_km=d)
+        except (GeocoderTimedOut, GeocoderServiceError):
+            time.sleep(SLEEP_BETWEEN_S + random.uniform(0,0.5))
+        except Exception:
+            pass
+        time.sleep(SLEEP_BETWEEN_S)
+
+    # C) base-only สั้นมาก แล้วกรองระยะ
+    base = safe_str(name_en) or safe_str(name_th)
+    if base:
+        try:
+            res = geo.geocode(base, exactly_one=False, addressdetails=True,
+                              country_codes="th", timeout=TIMEOUT)
+            pick = choose_nearest(res, ASOKE_BTS, max_km=MAX_DIST_KM)
+            if pick:
+                c, d = pick
+                return dict(lat=c.latitude, lon=c.longitude, address=getattr(c, "address", None),
+                            method="base-only<=5km", query=base, dist_asoke_km=d)
+        except Exception:
+            pass
+    return None
+
+# ─────────────── Main
+def main():
+    assert os.path.exists(INPUT_XLSX), f"ไม่พบไฟล์ {INPUT_XLSX}"
+    df = pd.read_excel(INPUT_XLSX)
+
+    if ("Project_Name" not in df.columns) and ("CONDO_NAME" not in df.columns):
+        raise ValueError("ต้องมีคอลัมน์อย่างน้อย 1: Project_Name หรือ CONDO_NAME")
+
+    # เตรียมคอลัมน์ผลลัพธ์
+    for col in ["lat","lon","full_address","osm_method","query_used",
+                "dist_asoke_m","dist_sukhumvit_m","asoke_zone","status"]:
+        if col not in df.columns:
+            df[col] = None
+
+    cache = load_cache(CACHE_JSON)
+    geo = Nominatim(user_agent=USER_AGENT, timeout=TIMEOUT)
+
+    # ทำเป็นกลุ่มตาม key (ลดการยิงซ้ำ)
+    buckets: Dict[str, List[int]] = {}
+    for idx, row in df.iterrows():
+        th = safe_str(row.get("CONDO_NAME"))
+        en = safe_str(row.get("Project_Name"))
+        key = norm_key(th, en)
+        buckets.setdefault(key, []).append(idx)
+
+    keys = list(buckets.keys())
+    pbar = tqdm(keys, ncols=100, unit="proj", desc="Geocoding Asoke")
+
+    processed = 0
+    for key in pbar:
+        if key in cache:
+            result = cache[key]
+        else:
+            # ดึงตัวแทนแถวแรกของกลุ่มเพื่อสร้าง query
+            idx0 = buckets[key][0]
+            th = safe_str(df.at[idx0, "CONDO_NAME"]) if "CONDO_NAME" in df.columns else ""
+            en = safe_str(df.at[idx0, "Project_Name"]) if "Project_Name" in df.columns else ""
+
+            # retry + backoff
+            result = None
+            for attempt in range(1, MAX_RETRIES+1):
+                try:
+                    result = geocode_with_fallback(geo, th, en)
+                    break
+                except Exception as e:
+                    wait = BACKOFF_BASE_S * attempt
+                    pbar.write(f"[WARN] Retry({attempt}) {en or th}: {e} → sleep {wait:.1f}s")
+                    time.sleep(wait)
+            cache[key] = result
+            save_cache(CACHE_JSON, cache)
+
+        # กระจายผลให้ทุก index ในกลุ่มเดียวกัน
+        for idx in buckets[key]:
+            if result:
+                lat, lon = float(result["lat"]), float(result["lon"])
+                d_asoke_m = geodesic((lat,lon), ASOKE_BTS).km * 1000
+                d_suk_m   = geodesic((lat,lon), MRT_SUKHUMVIT).km * 1000
+
+                df.at[idx,"lat"] = lat
+                df.at[idx,"lon"] = lon
+                df.at[idx,"full_address"] = result.get("address")
+                df.at[idx,"osm_method"] = result.get("method")
+                df.at[idx,"query_used"] = result.get("query")
+                df.at[idx,"dist_asoke_m"] = round(d_asoke_m, 2)
+                df.at[idx,"dist_sukhumvit_m"] = round(d_suk_m, 2)
+                df.at[idx,"asoke_zone"] = zone_label(d_asoke_m)
+                df.at[idx,"status"] = "FOUND"
+            else:
+                df.at[idx,"status"] = "NOT_FOUND"
+
+        processed += 1
+        if processed % AUTOSAVE_EVERY == 0:
+            df.to_excel(OUTPUT_XLSX, index=False)
+            pbar.write(f"...autosaved {processed}/{len(keys)} → {OUTPUT_XLSX}")
+
+    pbar.close()
+
+    # สรุป + เขียนไฟล์ท้ายงาน (พร้อมชีตแยกโซน)
+    found = int((df["status"] == "FOUND").sum())
+    total = len(df)
+    print(f"\nFound {found}/{total} ({found*100/total:.1f}%)")
+
+    with pd.ExcelWriter(OUTPUT_XLSX, engine="openpyxl") as w:
+        df.to_excel(w, sheet_name="all", index=False)
+        for z in ["0–500m","500m–1km","1–1.5km","1.5–2km","2km+"]:
+            df[df["asoke_zone"]==z].to_excel(w, sheet_name=z, index=False)
+
+    # preview NOT_FOUND (20 รายการแรก)
+    miss = df[df["status"]!="FOUND"][["Project_Name","CONDO_NAME"]].head(20)
+    if len(miss):
+        print("\nNOT_FOUND (top 20):")
+        print(miss.to_string(index=False))
+
+    print(f"\nSaved → {OUTPUT_XLSX}")
+    print("Done ✅")
+
+if __name__ == "__main__":
+    random.seed(42)  # deterministic
+    main()
