@@ -3,80 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mockup Web Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px 0;
-        }
-        header {
-            background-color: #333;
-            color: #fff;
-            padding: 1rem 0;
-            text-align: center;
-        }
-        header h1 {
-            margin: 0;
-        }
-        nav ul {
-            list-style: none;
-            padding: 0;
-            text-align: center;
-            background-color: #444;
-            margin-top: 10px;
-        }
-        nav ul li {
-            display: inline;
-            margin: 0 15px;
-        }
-        nav ul li a {
-            color: #fff;
-            text-decoration: none;
-            padding: 10px 0;
-            display: inline-block;
-        }
-        nav ul li a:hover {
-            color: #ddd;
-        }
-        .main-content {
-            padding: 20px 0;
-            display: flex;
-            flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
-            gap: 20px; /* Space between columns */
-            justify-content: center; /* Center columns horizontally */
-        }
-        .column {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            flex: 1; /* Allow columns to grow and shrink */
-            min-width: 280px; /* Minimum width for columns before wrapping */
-            max-width: 380px; /* Maximum width for columns */
-        }
-        .column h2 {
-            color: #007bff;
-            margin-top: 0;
-        }
-        footer {
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            padding: 1rem 0;
-            margin-top: 20px;
-        }
+    <title>Advanced Web Analyzer & Event Graph</title>
+    <!-- Favicon สามารถใส่ได้ที่นี่ -->
+    <!-- <link rel="icon" href="favicon.ico" type="image/x-icon"> -->
 
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .main-content {
-                flex-direction: column; /* Stack columns vertically on smaller screens */
-                align-items: center; /* Center stacked
+    <!-- CSS Framework (Optional, e.g., Bootstrap, Tailwind CSS) -->
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+    
+    <!-- Chart.js สำหรับกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Web Analyzer & Event Graph</h1>
+            <nav>
+                <ul>
+                    <li><a href="#graph-section">กราฟราคาและเหตุการณ์</a></li>
+                    <li><a href="#dom-analysis-section">วิเคราะห์ DOM</a></li>
+                    <li><a href="#about">เกี่ยวกับ</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="graph-section" class="card">
+            <h2>กราฟราคาและเหตุการณ์ในอดีต</h2>
+            <div class="controls">
+                <label for="symbol-select">เลือกสินทรัพย์:</label>
+                <select id="symbol-select">
+                    <option value="BTC">Bitcoin (BTC)</option>
+                    <option value="ETH">Ethereum (ETH)</option>
+                    <!-- สามารถเพิ่มตัวเลือกอื่นๆ ได้ -->
+                </select>
+                <label for="timeframe-select">ช่วงเวลา:</label>
+                <select id="timeframe-select">
+                    <option value="1m">1 เดือน</option>
+                    <option value="3m">3 เดือน</option>
+                    <option value="6m">6 เดือน</option>
+                    <option value="1y">1 ปี</option>
+                </select>
+                <button id="load-graph-btn">โหลดกราฟ</button>
+            </div>
+            <div class="graph-container">
+                <canvas id="priceChart"></canvas>
+                <div id="event-details" class="hidden">
+                    <h3>รายละเอียดเหตุการณ์:</h3>
+                    <p id="event-description"></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="dom-analysis-section" class="card">
+            <h2>การวิเคราะห์โครงสร้าง DOM ของหน้าเว็บ</h2>
+            <div class="controls">
+                <label for="url-input">ป้อน URL ที่ต้องการวิเคราะห์ (หากไม่ใช่หน้านี้):</label>
+                <input type="text" id="url-input" placeholder="https://example.com" size="50">
+                <button id="analyze-dom-btn">วิเคราะห์ DOM</button>
+            </div>
+            <div class="dom-visualization-container">
+                <h3>DOM Visualization:</h3>
+                <div id="dom-tree-view" class="tree-view">
+                    <!-- DOM Tree จะถูกสร้างด้วย JS ที่นี่ -->
+                </div>
+            </div>
+            <div class="dom-analysis-results">
+                <h3>ผลการวิเคราะห์:</h3>
+                <p id="dom-summary">โปรดทำการวิเคราะห์ DOM ก่อน</p>
+                <ul id="dom-insights">
+                    <!-- Insights จะถูกสร้างด้วย JS ที่นี่ -->
+                </ul>
+            </div>
+        </section>
+
+        <section id="about" class="card">
+            <h2>เกี่ยวกับ</h2>
+            <p>เครื่องมือนี้ช่วยให้คุณสามารถดูกราฟราคาของสินทรัพย์ต่างๆ พร้อมกับเหตุการณ์สำคัญในอดีต รวมถึงวิเคราะห์โครงสร้าง DOM ของหน้าเว็บเพื่อทำความเข้าใจการจัดองค์ประกอบ</p>
+            <p>พัฒนาโดย [ชื่อของคุณ/ทีมของคุณ]</p>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2023 Advanced Web Analyzer. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Custom JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
